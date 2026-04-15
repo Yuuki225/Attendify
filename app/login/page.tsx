@@ -18,43 +18,53 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
 
-    const email = `${nis}@eskul.school`
+    try {
+      if (!nis || !password) {
+        alert('❌ NIS dan Password harus diisi!')
+        setLoading(false)
+        return
+      }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+      const email = `${nis}@eskul.school`
 
-    if (error) {
-      alert('❌ Login gagal: ' + error.message)
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (error) {
+        alert('❌ Login gagal: ' + error.message)
+        setLoading(false)
+        return
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single()
+
+      if (profileError) {
+        alert('❌ Gagal mengambil profile: ' + profileError.message)
+        await supabase.auth.signOut()
+        setLoading(false)
+        return
+      }
+
+      const correctRole = profile?.role as 'siswa' | 'guru'
+      
+      if (profile?.role !== role) {
+        router.push(correctRole === 'siswa' ? '/siswa' : '/guru')
+        setLoading(false)
+        return
+      }
+
+      router.push(role === 'siswa' ? '/siswa' : '/guru')
       setLoading(false)
-      return
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', data.user.id)
-      .single()
-
-    if (profileError) {
-      alert('❌ Gagal mengambil profile: ' + profileError.message)
-      await supabase.auth.signOut()
+    } catch (err: any) {
+      alert('❌ Error: ' + (err?.message || String(err)))
       setLoading(false)
-      return
     }
-
-    const correctRole = profile?.role as 'siswa' | 'guru'
-    
-    if (profile?.role !== role) {
-      console.warn(`⚠️ Role mismatch: User memilih "${role}" tapi role di DB adalah "${profile?.role}". Menggunakan role dari DB.`)
-      router.push(correctRole === 'siswa' ? '/siswa' : '/guru')
-      setLoading(false)
-      return
-    }
-
-    router.push(role === 'siswa' ? '/siswa' : '/guru')
-    setLoading(false)
   }
 
   return (
